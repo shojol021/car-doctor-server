@@ -9,8 +9,6 @@ app.use(cors());
 app.use(express.json());
 
 
-
-
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.6c8obk5.mongodb.net/?retryWrites=true&w=majority`;
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
@@ -30,32 +28,38 @@ async function run() {
     const serviceCollection = client.db('CarDoctor').collection('service')
     const bookingCollection = client.db('CarDoctor').collection('booking')
 
-    app.get('/services', async(req, res) => {
-        const cursor = serviceCollection.find()
-        const result =  await cursor.toArray()
-        res.send(result)
+    app.get('/services', async (req, res) => {
+      const cursor = serviceCollection.find()
+      const result = await cursor.toArray()
+      res.send(result)
     })
 
-    app.get('/service/:id', async(req, res) => {
-        const id = req.params.id;
-        const query = {_id: new ObjectId(id)}
-        const options = {
-            projection: {title: 1, img: 1, price: 1,  },
-          };
-        const result = await serviceCollection.findOne(query, options)
-        res.send(result)
+    app.get('/service/:id', async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) }
+      const options = {
+        projection: { title: 1, img: 1, price: 1, },
+      };
+      const result = await serviceCollection.findOne(query, options)
+      res.send(result)
     })
 
-    app.get('/booking', async(req, res) => {
-        const result =  await bookingCollection.find().toArray()
-        res.send(result)
+    app.get('/booking', async (req, res) => {
+      const email = req.query.email
+      console.log(email)
+      let query = {}
+      if(email){
+        query = {email: email}
+      }
+      const result = await bookingCollection.find(query).toArray()
+      res.send(result)
     })
 
-    app.post('/booking', async(req, res) => {
-        const booking = req.body;
-        console.log(booking)
-        const result = await bookingCollection.insertOne(booking)
-        res.send(result)
+    app.post('/booking', async (req, res) => {
+      const booking = req.body;
+      console.log(booking)
+      const result = await bookingCollection.insertOne(booking)
+      res.send(result)
     })
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
@@ -70,9 +74,9 @@ run().catch(console.dir);
 
 
 app.get('/', (req, res) => {
-    res.send('doctor is running')
+  res.send('doctor is running')
 })
 
-app.listen(port, ()=> {
-    console.log('server is running on port', port)
+app.listen(port, () => {
+  console.log('server is running on port', port)
 })
