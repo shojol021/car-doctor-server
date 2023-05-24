@@ -1,5 +1,6 @@
 const express = require('express')
 const cors = require('cors')
+const jwt = require('jsonwebtoken')
 const app = express();
 const port = process.env.port || 5000;
 require('dotenv').config();
@@ -20,6 +21,23 @@ const client = new MongoClient(uri, {
   }
 });
 
+const verifyJwt = (req, res, next) => {
+  console.log(req.headers.authorization)
+  const authorization = req.headers.authorization
+  if (!authorization) {
+    return res.status(403).send({ error: true, message: 'Unauthorized access' })
+  }
+  const token = authorization.split(' ')[1]
+  console.log(token)
+  jwt.verify(token, proccess.env.ACCESS_TOKEN, (error, decoded) => {
+    if (error) {
+      return res.status(403).send({ error: true, message: 'Unauthorized access' })
+    }
+    req.decoded = decoded;
+    next()
+  })
+}
+
 async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
@@ -27,6 +45,13 @@ async function run() {
 
     const serviceCollection = client.db('CarDoctor').collection('service')
     const bookingCollection = client.db('CarDoctor').collection('booking')
+
+    app.post('/jwt', (req, res) => {
+      const user = req.body;
+      const token = jwt.sign(user, process.env.ACCESS_TOKEN, { expiresIn: "1h" })
+      res.send({ token })
+
+    })
 
     app.get('/services', async (req, res) => {
       const cursor = serviceCollection.find()
@@ -44,12 +69,11 @@ async function run() {
       res.send(result)
     })
 
-    app.get('/booking', async (req, res) => {
+    app.get('/booking', verifyJwt, async (req, res) => {
       const email = req.query.email
-      console.log(email)
       let query = {}
-      if(email){
-        query = {email: email}
+      if (email) {
+        query = { email: email }
       }
       const result = await bookingCollection.find(query).toArray()
       res.send(result)
@@ -62,9 +86,23 @@ async function run() {
       res.send(result)
     })
 
-    app.delete('/delete/:id', async(req, res) => {
+    app.patch('/booking/:id', async (req, res) => {
       const id = req.params.id;
-      const query = {_id: new ObjectId(id)}
+      const filter = { _id: new ObjectId(id) }
+      const updatedDetails = req.body;
+      console.log(updatedDetails)
+      const updatedDoc = {
+        $set: {
+          status: updatedDetails.status
+        }
+      };
+      const result = await bookingCollection.updateOne(filter, updatedDoc)
+      res.send(result)
+    })
+
+    app.delete('/delete/:id', async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) }
       const result = await bookingCollection.deleteOne(query)
       res.send(result)
     })
